@@ -1,11 +1,9 @@
 import type { AWS } from '@serverless/typescript';
 
-import hello from '@functions/hello';
-
 const serverlessConfiguration: AWS = {
-  service: 'service-12-serverless-blank',
+  service: 'serverless',
   frameworkVersion: '3',
-  plugins: ['serverless-esbuild'],
+  plugins: ['serverless-esbuild', 'serverless-offline', 'serverless-dynamodb-local'],
   provider: {
     name: 'aws',
     runtime: 'nodejs14.x',
@@ -18,8 +16,57 @@ const serverlessConfiguration: AWS = {
       NODE_OPTIONS: '--enable-source-maps --stack-trace-limit=1000',
     },
   },
+  resources: {
+    Resources: {
+      todosTable: {
+        Type: "AWS::DynamoDB::Table",
+        Properties: {
+          TableName: "users_todos",
+          AttributeDefinitions: [
+            {
+              AttributeName: "id",
+              AttributeType: "S"
+            }
+          ],
+          KeySchema: [
+            {
+              AttributeName: "id",
+              KeyType: "HASH"
+            }
+          ],
+          ProvisionedThroughput: {
+            ReadCapacityUnits: 1,
+            WriteCapacityUnits: 1
+          }
+        }
+      }
+    }
+  },
   // import the function via paths
-  functions: { hello },
+  functions: {
+    todocreate: {
+      handler: "src/functions/todo/create.handler",
+      timeout: 900,
+      events: [{
+        http: {
+          path: "/todos/{userID}",
+          method: "post",
+          cors: true,
+        },
+      }],
+    },
+    todoshow: {
+      handler: "src/functions/todo/show.handler",
+      timeout: 900,
+      events: [{
+        http: {
+          path: "/todos/{userID}",
+          method: "get",
+          cors: true,
+        },
+      }],
+    }
+  },
   package: { individually: true },
   custom: {
     esbuild: {
@@ -32,6 +79,14 @@ const serverlessConfiguration: AWS = {
       platform: 'node',
       concurrency: 10,
     },
+    dynamodb: {
+      stages: ['dev', 'local'],
+      start: {
+        port: 8000,
+        inMemory: true,
+        migrate: true
+      }
+    }
   },
 };
 
